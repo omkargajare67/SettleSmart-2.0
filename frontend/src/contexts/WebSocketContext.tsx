@@ -57,7 +57,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const isVercel = typeof window !== 'undefined' && window.location.host.includes('vercel.app');
     const defaultWs = isVercel
-      ? 'wss://hewlett-epson-collectible-lunch.trycloudflare.com'
+      ? 'wss://frankfurt-provinces-loan-cartoons.trycloudflare.com'
       : (typeof window !== 'undefined'
           ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
           : 'ws://localhost:8000');

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://hewlett-epson-collectible-lunch.trycloudflare.com/api/:path*"
+      "destination": "https://frankfurt-provinces-loan-cartoons.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
