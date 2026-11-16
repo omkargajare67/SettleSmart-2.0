@@ -34,7 +34,7 @@ static unsigned __stdcall tx_worker(void *arg) {
     int idx = 0;
     while (!carg->stop && idx < 10) {
         char key[64];
-        snprintf(key, sizeof(key), "key_concur_%d_%lld", idx, (long long)GetTickCount());
+        snprintf(key, sizeof(key), "b0000000-0000-4000-8000-%012d", idx + 100);
         char amt[32];
         snprintf(amt, sizeof(amt), "%d.00", 100 + idx * 10);
         Transaction tx;
@@ -90,12 +90,15 @@ int main(void) {
         return 1;
     }
 
+    db_client_query(&client, "SET FOREIGN_KEY_CHECKS=0;");
+    db_client_query(&client, "DELETE FROM outbox_consumer_cursors;");
     db_client_query(&client, "DELETE FROM event_outbox;");
-    db_client_query(&client, "DELETE FROM transactions WHERE idempotency_key LIKE '%snap%';");
-    db_client_query(&client, "DELETE FROM transactions WHERE idempotency_key LIKE '%concur%';");
-    db_client_query(&client, "DELETE FROM entities WHERE name LIKE '%Snap%';");
-    db_client_query(&client, "DELETE FROM users WHERE email LIKE '%snap%';");
+    db_client_query(&client, "DELETE FROM transactions WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'Snap Org');");
+    db_client_query(&client, "DELETE FROM entities WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'Snap Org');");
+    db_client_query(&client, "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'Snap Org'));");
+    db_client_query(&client, "DELETE FROM users WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'Snap Org');");
     db_client_query(&client, "DELETE FROM organizations WHERE name = 'Snap Org';");
+    db_client_query(&client, "SET FOREIGN_KEY_CHECKS=1;");
 
     long long org_id = 0;
     long long user_id = 0;
@@ -110,8 +113,8 @@ int main(void) {
     }
 
     Entity e1, e2;
-    entity_service_create(&client, org_id, user_id, "Snap Ent A", "Department", &e1, err_buf, sizeof(err_buf));
-    entity_service_create(&client, org_id, user_id, "Snap Ent B", "Vendor", &e2, err_buf, sizeof(err_buf));
+    entity_service_create(&client, org_id, user_id, "Snap Ent A", ENTITY_TYPE_DEPARTMENT, &e1, err_buf, sizeof(err_buf));
+    entity_service_create(&client, org_id, user_id, "Snap Ent B", ENTITY_TYPE_VENDOR, &e2, err_buf, sizeof(err_buf));
     printf("PASSED: Test entities created: Ent A=%lld, Ent B=%lld\n", e1.id, e2.id);
 
     char json_buf[16384];
@@ -120,7 +123,7 @@ int main(void) {
         db_client_close(&client);
         return 1;
     }
-    if (strstr(json_buf, "\"watermark\":0") == NULL || strstr(json_buf, "\"edges\":[]") == NULL) {
+    if (strstr(json_buf, "\"event_sequence_watermark\":0") == NULL || strstr(json_buf, "\"edges\":[]") == NULL) {
         printf("FAILED: Initial snapshot does not have watermark 0 or empty edges: %s\n", json_buf);
         db_client_close(&client);
         return 1;
@@ -129,13 +132,15 @@ int main(void) {
 
     for (int i = 1; i <= 3; i++) {
         char k[64];
-        snprintf(k, sizeof(k), "snap_init_%d", i);
+        snprintf(k, sizeof(k), "a0000000-0000-4000-8000-%012d", i);
         char amt[32];
         snprintf(amt, sizeof(amt), "%d.00", 50 * i);
         Transaction tx;
         int is_replay = 0;
-        transaction_service_create(&client, org_id, user_id, e1.id, e2.id, amt, "INR",
-                                   k, &tx, &is_replay, err_buf, sizeof(err_buf));
+        if (transaction_service_create(&client, org_id, user_id, e1.id, e2.id, amt, "INR",
+                                   k, &tx, &is_replay, err_buf, sizeof(err_buf)) != 0) {
+            printf("Create failed: %s\n", err_buf);
+        }
     }
 
     int64_t db_watermark = 0;
@@ -152,7 +157,7 @@ int main(void) {
         db_client_close(&client);
         return 1;
     }
-    if (strstr(json_buf, "\"watermark\":3") == NULL) {
+    if (strstr(json_buf, "\"event_sequence_watermark\":3") == NULL) {
         printf("FAILED: Snapshot does not contain watermark 3: %s\n", json_buf);
         db_client_close(&client);
         return 1;
@@ -161,13 +166,15 @@ int main(void) {
 
     for (int i = 4; i <= 6; i++) {
         char k[64];
-        snprintf(k, sizeof(k), "snap_init_%d", i);
+        snprintf(k, sizeof(k), "a0000000-0000-4000-8000-%012d", i);
         char amt[32];
         snprintf(amt, sizeof(amt), "%d.00", 50 * i);
         Transaction tx;
         int is_replay = 0;
-        transaction_service_create(&client, org_id, user_id, e1.id, e2.id, amt, "INR",
-                                   k, &tx, &is_replay, err_buf, sizeof(err_buf));
+        if (transaction_service_create(&client, org_id, user_id, e1.id, e2.id, amt, "INR",
+                                   k, &tx, &is_replay, err_buf, sizeof(err_buf)) != 0) {
+            printf("Create failed: %s\n", err_buf);
+        }
     }
 
     char replay_buf[8192];
@@ -214,9 +221,9 @@ int main(void) {
     for (int loop = 0; loop < 5; loop++) {
         char snap[16384];
         if (graph_service_get_snapshot_json(&client, org_id, 0, NULL, NULL, NULL, 1, 100, snap, sizeof(snap)) == 0) {
-            char *wm_pos = strstr(snap, "\"watermark\":");
+            char *wm_pos = strstr(snap, "\"event_sequence_watermark\":");
             if (wm_pos) {
-                int64_t snap_wm = atoll(wm_pos + 12);
+                int64_t snap_wm = atoll(wm_pos + 27);
                 if (snap_wm < 6) {
                     printf("FAILED: Inconsistent watermark %lld during concurrent execution\n", (long long)snap_wm);
                     carg.stop = 1;

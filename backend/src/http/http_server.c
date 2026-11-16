@@ -34,7 +34,7 @@ int http_is_origin_allowed(const char *allowed_origins, const char *origin) {
             token[len - 1] = '\0';
             len--;
         }
-        if (strcmp(token, origin) == 0) {
+        if (strcmp(token, origin) == 0 || strcmp(token, "*") == 0) {
             return 1;
         }
         token = strtok(NULL, ",");
@@ -326,7 +326,7 @@ void http_handle_request(struct mg_connection *c, struct mg_http_message *hm,
             return;
         }
 
-        if (!active_origin || !http_is_origin_allowed(config->allowed_origins, active_origin)) {
+        if (active_origin && !http_is_origin_allowed(config->allowed_origins, active_origin)) {
             send_json_reply(c, 403, active_origin, config, NULL, "{\"success\":false,\"error\":\"Origin not allowed\"}");
             return;
         }

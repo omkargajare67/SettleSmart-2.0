@@ -50,7 +50,7 @@ int main(void) {
     db_client_query(&client, "CREATE TABLE IF NOT EXISTS test_recovery_dummy (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(50)) ENGINE=InnoDB;");
     db_client_query(&client, "DELETE FROM test_recovery_dummy;");
 
-    db_client_start_transaction(&client);
+    db_client_begin(&client);
     db_client_query(&client, "INSERT INTO test_recovery_dummy (val) VALUES ('uncommitted_entry');");
     db_client_rollback(&client);
 
@@ -77,7 +77,15 @@ int main(void) {
     long long org_id = 0;
     long long user_id = 0;
     char err_buf[256];
+    db_client_query(&client, "SET FOREIGN_KEY_CHECKS=0;");
+    db_client_query(&client, "DELETE FROM outbox_consumer_cursors;");
+    db_client_query(&client, "DELETE FROM event_outbox;");
+    db_client_query(&client, "DELETE FROM transactions WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'FailRec Org');");
+    db_client_query(&client, "DELETE FROM entities WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'FailRec Org');");
+    db_client_query(&client, "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'FailRec Org'));");
+    db_client_query(&client, "DELETE FROM users WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'FailRec Org');");
     db_client_query(&client, "DELETE FROM organizations WHERE name = 'FailRec Org';");
+    db_client_query(&client, "SET FOREIGN_KEY_CHECKS=1;");
 
     if (auth_register_organization(&client, "FailRec Org", "admin@failrec.com",
                                    "AdminSecret#2026", &org_id, &user_id,
@@ -88,9 +96,11 @@ int main(void) {
     }
 
     Transaction failed_tx;
-    int tx_res = transaction_service_create(&client, org_id, 999999, 999998, 50000, "INR",
-                                            "failrec_key_1", "fp_failrec", user_id,
-                                            &failed_tx, err_buf, sizeof(err_buf));
+    int is_replay = 0;
+    int tx_res = transaction_service_create(&client, org_id, user_id, 999999, 999998,
+                                            "500.00", "INR",
+                                            "c0000000-0000-4000-8000-000000000001",
+                                            &failed_tx, &is_replay, err_buf, sizeof(err_buf));
     if (tx_res == 0) {
         printf("FAILED: Transaction with nonexistent entities unexpectedly succeeded\n");
         db_client_close(&client);

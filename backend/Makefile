@@ -265,7 +265,7 @@ tests/multi_instance_websocket_test$(EXE_EXT): tests/multi_instance_websocket_te
 tests/multi_instance_dsa_test$(EXE_EXT): tests/multi_instance_dsa_test.c $(PROCESSOR_ALL_SRCS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-tests/db_failure_recovery_test$(EXE_EXT): tests/db_failure_recovery_test.c $(TRANSACTION_ALL_SRCS)
+tests/db_failure_recovery_test$(EXE_EXT): tests/db_failure_recovery_test.c $(PROCESSOR_ALL_SRCS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 test: all

@@ -34,12 +34,15 @@ int main(void) {
         return 1;
     }
 
+    db_client_query(&client_a, "SET FOREIGN_KEY_CHECKS=0;");
     db_client_query(&client_a, "DELETE FROM outbox_consumer_cursors;");
     db_client_query(&client_a, "DELETE FROM event_outbox;");
-    db_client_query(&client_a, "DELETE FROM transactions WHERE idempotency_key LIKE '%multidsa%';");
-    db_client_query(&client_a, "DELETE FROM entities WHERE name LIKE '%MultiDsa%';");
-    db_client_query(&client_a, "DELETE FROM users WHERE email LIKE '%multidsa%';");
+    db_client_query(&client_a, "DELETE FROM transactions WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'MultiDsa Org');");
+    db_client_query(&client_a, "DELETE FROM entities WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'MultiDsa Org');");
+    db_client_query(&client_a, "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'MultiDsa Org'));");
+    db_client_query(&client_a, "DELETE FROM users WHERE organization_id IN (SELECT id FROM organizations WHERE name = 'MultiDsa Org');");
     db_client_query(&client_a, "DELETE FROM organizations WHERE name = 'MultiDsa Org';");
+    db_client_query(&client_a, "SET FOREIGN_KEY_CHECKS=1;");
 
     long long org_id = 0;
     long long user_id = 0;
@@ -55,8 +58,8 @@ int main(void) {
     }
 
     Entity e1, e2;
-    entity_service_create(&client_a, org_id, "MultiDsa Ent 1", "Department", user_id, &e1, err_buf, sizeof(err_buf));
-    entity_service_create(&client_a, org_id, "MultiDsa Ent 2", "Vendor", user_id, &e2, err_buf, sizeof(err_buf));
+    entity_service_create(&client_a, org_id, user_id, "MultiDsa Ent 1", ENTITY_TYPE_DEPARTMENT, &e1, err_buf, sizeof(err_buf));
+    entity_service_create(&client_a, org_id, user_id, "MultiDsa Ent 2", ENTITY_TYPE_VENDOR, &e2, err_buf, sizeof(err_buf));
 
     DsaState state_a;
     DirectedGraph graph_a;
@@ -81,9 +84,10 @@ int main(void) {
     printf("PASSED: Independent DsaState, DirectedGraph and OutboxConsumers initialized for Instance A and B\n");
 
     Transaction tx1;
-    if (transaction_service_create(&client_a, org_id, e1.id, e2.id, 100000, "INR",
-                                   "multidsa_key_1", "fp_multidsa", user_id, &tx1,
-                                   err_buf, sizeof(err_buf)) != 0) {
+    int is_replay = 0;
+    if (transaction_service_create(&client_a, org_id, user_id, e1.id, e2.id,
+                                   "1000.00", "INR", "a0000000-0000-4000-8000-000000000001",
+                                   &tx1, &is_replay, err_buf, sizeof(err_buf)) != 0) {
         printf("FAILED: Transaction creation on Instance A failed: %s\n", err_buf);
         return 1;
     }
@@ -151,8 +155,10 @@ int main(void) {
     printf("PASSED: Outbox consumption is idempotent; repeat poll does not duplicate financial effects\n");
 
     Transaction tx_rev;
-    if (transaction_service_create_reversal(&client_b, org_id, tx1.id, "multidsa_key_rev",
-                                            "fp_multidsa_rev", user_id, &tx_rev,
+    int is_rev_replay = 0;
+    if (transaction_service_create_reversal(&client_b, org_id, user_id, tx1.id,
+                                            "b0000000-0000-4000-8000-000000000001",
+                                            &tx_rev, &is_rev_replay,
                                             err_buf, sizeof(err_buf)) != 0) {
         printf("FAILED: Reversal creation on Instance B failed: %s\n", err_buf);
         return 1;

@@ -125,7 +125,9 @@ int outbox_consumer_poll_org(OutboxConsumer *consumer, long long org_id,
             if (transaction_service_get_by_id(consumer->db_client, org_id, tx_id, &tx, tx_err, sizeof(tx_err)) == 0) {
                 if (strcmp(ev_type, "TRANSACTION_CREATED") == 0) {
                     if (consumer->dsa_state && consumer->dsa_state->organization_id == org_id) {
-                        dsa_state_on_transaction_created(consumer->dsa_state, &tx);
+                        Transaction tx_created = tx;
+                        tx_created.status = TRANSACTION_STATUS_PENDING;
+                        dsa_state_on_transaction_created(consumer->dsa_state, &tx_created);
                     }
                     if (consumer->graph) {
                         graph_add_edge(consumer->graph, &tx);
