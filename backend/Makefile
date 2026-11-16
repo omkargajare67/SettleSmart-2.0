@@ -1,8 +1,28 @@
 CFLAGS = -Wall -Wextra -std=c11 -Isrc/config -Isrc/database -Isrc/auth -Isrc/entities -Isrc/transactions -Isrc/dsa -Isrc/graph -Isrc/websocket -Isrc/algorithms -Isrc/http -Ithird_party/argon2/include -Ithird_party/mongoose
 
 ifeq ($(OS),Windows_NT)
-    CC = C:/mingw64/bin/gcc.exe
-    MYSQL_DIR ?= C:/Program Files/MySQL/MySQL Server 9.7
+    ifeq ($(origin CC),default)
+        ifeq ($(wildcard C:/mingw64/bin/gcc.exe),)
+            CC = gcc
+        else
+            CC = C:/mingw64/bin/gcc.exe
+        endif
+    endif
+    ifeq ($(MYSQL_DIR),)
+        ifeq ($(wildcard C:/Program*Files/MySQL/MySQL*Server*9.7*),)
+            ifeq ($(wildcard C:/Program*Files/MySQL/MySQL*Server*8.0*),)
+                ifeq ($(wildcard C:/Program*Files/MySQL/MySQL*Server*8.4*),)
+                    MYSQL_DIR = C:/Program Files/MySQL/MySQL Server 8.0
+                else
+                    MYSQL_DIR = C:/Program Files/MySQL/MySQL Server 8.4
+                endif
+            else
+                MYSQL_DIR = C:/Program Files/MySQL/MySQL Server 8.0
+            endif
+        else
+            MYSQL_DIR = C:/Program Files/MySQL/MySQL Server 9.7
+        endif
+    endif
     CFLAGS += -I"$(MYSQL_DIR)/include"
     LDFLAGS += -L"$(MYSQL_DIR)/lib" -llibmysql -lws2_32 -lbcrypt
     EXE_EXT = .exe
