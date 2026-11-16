@@ -1,0 +1,38 @@
+# Environment configuration
+.env
+*.env.local
+
+# Build artifacts and compiled binaries (C Backend)
+bin/
+build/
+*.o
+*.obj
+*.exe
+*.out
+*.dll
+*.so
+*.dylib
+backend/build/
+backend/bin/
+
+# Dependencies and package managers
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend build outputs (React)
+frontend/build/
+frontend/dist/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Database local dumps and logs
+database/dumps/*.sql
+*.log
