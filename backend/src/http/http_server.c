@@ -303,7 +303,7 @@ void http_handle_request(struct mg_connection *c, struct mg_http_message *hm,
         char cookie_header[256];
         if (config->cookie_secure) {
             snprintf(cookie_header, sizeof(cookie_header),
-                     "Set-Cookie: session_token=%s; Path=/; HttpOnly; Secure; SameSite=Lax\r\n",
+                     "Set-Cookie: session_token=%s; Path=/; HttpOnly; Secure; SameSite=None\r\n",
                      session_token);
         } else {
             snprintf(cookie_header, sizeof(cookie_header),
@@ -313,8 +313,8 @@ void http_handle_request(struct mg_connection *c, struct mg_http_message *hm,
 
         char resp[512];
         snprintf(resp, sizeof(resp),
-                 "{\"success\":true,\"csrf_token\":\"%s\",\"user\":{\"id\":%lld,\"organization_id\":%lld,\"email\":\"%s\",\"role\":\"%s\",\"status\":\"%s\"}}",
-                 csrf_token, user_info.id, user_info.organization_id, user_info.email,
+                 "{\"success\":true,\"csrf_token\":\"%s\",\"token\":\"%s\",\"user\":{\"id\":%lld,\"organization_id\":%lld,\"email\":\"%s\",\"role\":\"%s\",\"status\":\"%s\"}}",
+                 csrf_token, session_token, user_info.id, user_info.organization_id, user_info.email,
                  auth_role_to_string(user_info.role), user_info.status);
         send_json_reply(c, 200, active_origin, config, cookie_header, resp);
         return;
@@ -396,8 +396,8 @@ void http_handle_request(struct mg_connection *c, struct mg_http_message *hm,
 
         char resp[512];
         snprintf(resp, sizeof(resp),
-                 "{\"success\":true,\"user\":{\"id\":%lld,\"organization_id\":%lld,\"email\":\"%s\",\"role\":\"%s\"}}",
-                 session.user_id, session.organization_id, session.user_email,
+                 "{\"success\":true,\"token\":\"%s\",\"user\":{\"id\":%lld,\"organization_id\":%lld,\"email\":\"%s\",\"role\":\"%s\"}}",
+                 raw_session_token, session.user_id, session.organization_id, session.user_email,
                  auth_role_to_string(session.user_role));
         send_json_reply(c, 200, active_origin, config, NULL, resp);
         return;
@@ -616,7 +616,7 @@ int http_server_start(HttpServerConfig *config) {
         return -1;
     }
 
-    if (strcmp(config->app_env, "production") == 0) {
+    if (strcmp(config->app_env, "production") == 0 || strstr(config->allowed_origins, "https://") != NULL) {
         config->cookie_secure = 1;
     }
 

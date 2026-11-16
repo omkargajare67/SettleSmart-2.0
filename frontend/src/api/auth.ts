@@ -10,6 +10,7 @@ export interface LoginParams {
 export interface LoginResponse {
   success: boolean;
   csrf_token: string;
+  token?: string;
   user: User;
   error?: string;
 }
@@ -55,8 +56,8 @@ export async function logout(): Promise<{ success: boolean; message: string }> {
   }
 }
 
-export async function getCurrentUser(): Promise<{ success: boolean; user: User }> {
-  return apiClient<{ success: boolean; user: User }>('/api/auth/me');
+export async function getCurrentUser(): Promise<{ success: boolean; user: User; token?: string }> {
+  return apiClient<{ success: boolean; user: User; token?: string }>('/api/auth/me');
 }
 
 export async function changePassword(current_password: string, new_password: string): Promise<{ success: boolean; message: string }> {

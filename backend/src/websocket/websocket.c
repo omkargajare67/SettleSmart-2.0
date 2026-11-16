@@ -24,7 +24,7 @@ static int ws_is_origin_allowed(const char *allowed_origins, const char *origin)
             token[len - 1] = '\0';
             len--;
         }
-        if (strcmp(token, origin) == 0) {
+        if (strcmp(token, origin) == 0 || strcmp(token, "*") == 0) {
             return 1;
         }
         token = strtok(NULL, ",");
@@ -101,14 +101,24 @@ int ws_handle_upgrade(struct mg_connection *c, struct mg_http_message *hm,
         }
     }
 
+    char raw_session[128] = {0};
+    int has_token = 0;
+
     struct mg_str *cookie_hdr = mg_http_get_header(hm, "Cookie");
-    if (!cookie_hdr || cookie_hdr->len == 0) {
-        mg_http_reply(c, 401, "Content-Type: application/json\r\n", "{\"success\":false,\"error\":\"Unauthorized\"}");
-        return -1;
+    if (cookie_hdr && cookie_hdr->len > 0) {
+        if (ws_parse_cookie(cookie_hdr->buf, cookie_hdr->len, "session_token", raw_session, sizeof(raw_session)) == 0) {
+            has_token = 1;
+        }
     }
 
-    char raw_session[128];
-    if (ws_parse_cookie(cookie_hdr->buf, cookie_hdr->len, "session_token", raw_session, sizeof(raw_session)) != 0) {
+    if (!has_token) {
+        if (mg_http_get_var(&hm->query, "token", raw_session, sizeof(raw_session)) > 0 ||
+            mg_http_get_var(&hm->query, "session_token", raw_session, sizeof(raw_session)) > 0) {
+            has_token = 1;
+        }
+    }
+
+    if (!has_token) {
         mg_http_reply(c, 401, "Content-Type: application/json\r\n", "{\"success\":false,\"error\":\"Unauthorized\"}");
         return -1;
     }

@@ -152,18 +152,18 @@ export interface GraphSnapshotResponse {
 export type WebSocketState = 'LIVE' | 'RECONNECTING' | 'OFFLINE';
 
 export interface WebSocketEventMessage {
-  event_type: 'TRANSACTION_CREATED' | 'TRANSACTION_STATUS_CHANGED';
+  event_type: 'TRANSACTION_CREATED' | 'TRANSACTION_STATUS_CHANGED' | 'POLL_SYNC';
   sequence: number;
-  payload: {
+  payload?: {
     transaction_id?: number;
     id?: number;
-    organization_id: number;
-    sender_entity_id: number;
-    receiver_entity_id: number;
+    organization_id?: number;
+    sender_entity_id?: number;
+    receiver_entity_id?: number;
     amount?: string;
     amount_str?: string;
     currency?: string;
-    status: TransactionStatus;
+    status?: TransactionStatus;
     type?: TransactionType;
     reversal_of_id?: number | null;
     created_at?: string;

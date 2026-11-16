@@ -66,7 +66,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ? import.meta.env.VITE_WS_URL
         : defaultWs
     ).replace(/\/+$/, '');
-    const wsUrl = `${wsBase}/ws/graph`;
+
+    const token = typeof window !== 'undefined' ? sessionStorage.getItem('settlesmart_ws_token') : null;
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${wsBase}/ws/graph${tokenQuery}`;
 
     try {
       setConnectionState(consecutiveFailsRef.current > 0 ? 'RECONNECTING' : 'OFFLINE');
@@ -158,6 +161,22 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     };
   }, [connect]);
+
+  useEffect(() => {
+    if (!isAuthenticated || connectionState === 'LIVE') return;
+    const interval = setInterval(() => {
+      listenersRef.current.forEach((listener) => {
+        try {
+          listener({
+            event_type: 'POLL_SYNC',
+            sequence: watermarkRef.current,
+            payload: {},
+          });
+        } catch {}
+      });
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, connectionState]);
 
   const reconnect = useCallback(() => {
     consecutiveFailsRef.current = 0;

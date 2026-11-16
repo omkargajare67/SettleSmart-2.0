@@ -39,6 +39,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await getCurrentUser();
       if (res && res.success && res.user) {
         setUser(res.user);
+        if (res.token) {
+          try { sessionStorage.setItem('settlesmart_ws_token', res.token); } catch {}
+        }
         await refreshCsrfToken();
       } else {
         setUser(null);
@@ -60,6 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await apiLogin(params);
       if (res && res.success && res.user) {
         setUser(res.user);
+        if (res.token) {
+          try { sessionStorage.setItem('settlesmart_ws_token', res.token); } catch {}
+        }
         setLastOrgId(params.organization_id);
         try {
           localStorage.setItem('settlesmart_last_org_id', String(params.organization_id));
@@ -77,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
+      try { sessionStorage.removeItem('settlesmart_ws_token'); } catch {}
       await apiLogout();
     } catch (err) {
       console.warn('Logout warning', err);
