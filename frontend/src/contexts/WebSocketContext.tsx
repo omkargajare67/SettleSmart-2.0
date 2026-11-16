@@ -55,9 +55,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
-    const defaultWs = typeof window !== 'undefined'
-      ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
-      : 'ws://localhost:8000';
+    const isVercel = typeof window !== 'undefined' && window.location.host.includes('vercel.app');
+    const defaultWs = isVercel
+      ? 'wss://hewlett-epson-collectible-lunch.trycloudflare.com'
+      : (typeof window !== 'undefined'
+          ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+          : 'ws://localhost:8000');
     const wsBase = (
       import.meta.env.VITE_WS_URL && !import.meta.env.VITE_WS_URL.includes('localhost')
         ? import.meta.env.VITE_WS_URL
